@@ -1053,6 +1053,11 @@ std::string MDAL::DriverSelafin::writeDatasetOnFileSuffix() const
   return "slf";
 }
 
+std::string MDAL::DriverSelafin::saveMeshOnFileSuffix() const
+{
+  return "slf";
+}
+
 // return false if fails
 static void streamToStream( std::ostream &destination,
                             std::ifstream &source,
