@@ -116,8 +116,6 @@ std::unique_ptr<MDAL::Mesh> MDAL::DriverPly::load( const std::string &meshFile, 
       libply::ElementReadCallback faceCallback = [&faces, el, &maxSizeFace]( libply::ElementBuffer & e )
       {
         Face face;
-        maxSizeFace = 3;
-        face.resize( 3 );
         for ( size_t i = 0; i < el.properties.size(); i++ )
         {
           libply::Property p = el.properties[i];
@@ -127,10 +125,12 @@ std::unique_ptr<MDAL::Mesh> MDAL::DriverPly::load( const std::string &meshFile, 
             {
               // TODO raise error
             }
-            for ( size_t j = 0; j < maxSizeFace; j++ )
+            libply::ListProperty *lp = dynamic_cast<libply::ListProperty*>(&e[i]);
+            if (maxSizeFace < lp->size()) maxSizeFace = lp->size();
+            face.resize( lp->size() );
+            for ( size_t j = 0; j < lp->size(); j++ )
             {
-                //std::cout << std::to_string( int( e[j] ) ) << std::endl;
-                face[j] = int( e[j] );
+                face[j] = int( lp->value(j) );
             }
           }
         }
