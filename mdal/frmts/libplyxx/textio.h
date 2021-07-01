@@ -25,6 +25,7 @@ namespace textio
 
       const_iterator begin() const { return m_begin; };
       const_iterator end() const { return m_end; };
+      int size() const { return m_end - m_begin; };
 
     private:
       const_iterator m_begin;
@@ -108,7 +109,7 @@ namespace textio
         ++p;
         ++n;
       }
-      real += static_cast<T>( frac / std::pow( 10.0 , n ) );
+      real += static_cast<T>( frac / std::pow( 10.0, n ) );
     }
     if ( p != end && ( *p == 'e' || *p == 'E' ) )
     {
