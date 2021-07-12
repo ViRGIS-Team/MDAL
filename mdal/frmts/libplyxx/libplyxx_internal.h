@@ -188,14 +188,37 @@ namespace libply
     { Type::FLOAT32, write_convert_FLOAT },
     { Type::FLOAT64, write_convert_DOUBLE }
   };
-
-  inline void write_cast_UINT( IProperty &property, char *buffer, size_t &size )
+  inline void write_cast_UINT8( IProperty &property, char *buffer, size_t &size )
   {
-    *reinterpret_cast<unsigned int *>( buffer ) = static_cast<unsigned int>( property );
+    *reinterpret_cast<unsigned char *>( buffer ) = static_cast<unsigned int>( property );
     size = sizeof( unsigned char );
   }
 
-  inline void write_cast_INT( IProperty &property, char *buffer, size_t &size )
+  inline void write_cast_INT8( IProperty &property, char *buffer, size_t &size )
+  {
+    *reinterpret_cast<char *>( buffer ) = static_cast<int>( property );
+    size = sizeof( char );
+  }
+
+  inline void write_cast_UINT16( IProperty &property, char *buffer, size_t &size )
+  {
+    *reinterpret_cast<unsigned short *>( buffer ) = static_cast<unsigned int>( property );
+    size = sizeof( unsigned short );
+  }
+
+  inline void write_cast_INT16( IProperty &property, char *buffer, size_t &size )
+  {
+    *reinterpret_cast<short *>( buffer ) = static_cast<int>( property );
+    size = sizeof( short );
+  }
+
+  inline void write_cast_UINT32( IProperty &property, char *buffer, size_t &size )
+  {
+    *reinterpret_cast<unsigned int *>( buffer ) = static_cast<unsigned int>( property );
+    size = sizeof( unsigned int );
+  }
+
+  inline void write_cast_INT32( IProperty &property, char *buffer, size_t &size )
   {
     *reinterpret_cast<int *>( buffer ) = static_cast<int>( property );
     size = sizeof( int );
@@ -218,12 +241,12 @@ namespace libply
 
   const WriteCastFunctionMap WRITE_CAST_MAP =
   {
-    { Type::INT8, write_cast_INT },
-    { Type::UINT8, write_cast_UINT },
-    { Type::INT16, write_cast_INT },
-    { Type::UINT16, write_cast_UINT },
-    { Type::INT32, write_cast_INT },
-    { Type::UINT32, write_cast_UINT },
+    { Type::INT8, write_cast_INT8 },
+    { Type::UINT8, write_cast_UINT8 },
+    { Type::INT16, write_cast_INT16 },
+    { Type::UINT16, write_cast_UINT16 },
+    { Type::INT32, write_cast_INT32 },
+    { Type::UINT32, write_cast_UINT32 },
     { Type::FLOAT32, write_cast_FLOAT },
     { Type::FLOAT64, write_cast_DOUBLE }
   };

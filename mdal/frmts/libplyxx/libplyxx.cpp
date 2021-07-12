@@ -1,5 +1,6 @@
 #include "libplyxx_internal.h"
 #include "mdal.h"
+#include "mdal_utils.hpp"
 
 #include <fstream>
 #include <string>
@@ -64,7 +65,7 @@ namespace libply
     {
       if ( tokens.size() != 5 )
       {
-        MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, std::string("PLY: Invalid Property Definition : ").append( textio::Tokenizer::toString(tokens) ).c_str() );
+        MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, std::string( "PLY: Invalid Property Definition : " ).append( textio::Tokenizer::toString( tokens ) ).c_str() );
       }
       else
       {
@@ -75,7 +76,7 @@ namespace libply
     {
       if ( tokens.size() != 3 )
       {
-        MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, std::string("PLY: Invalid Property Definition : ").append( textio::Tokenizer::toString(tokens) ).c_str() );
+        MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, std::string( "PLY: Invalid Property Definition : " ).append( textio::Tokenizer::toString( tokens ) ).c_str() );
       }
       else
       {
@@ -93,7 +94,7 @@ namespace libply
     textio::SubString::const_iterator comment = textio::find( next, line.end(), ':' );
     if ( comment != line.end() )
     {
-      metadata.emplace( std::string( textio::SubString( next, comment ) ), std::string( textio::SubString( comment + 1, line.end() ) ) );
+      metadata.emplace( MDAL::trim( std::string( textio::SubString( next, comment ) ) ), MDAL::trim( std::string( textio::SubString( comment + 1, line.end() ) ) ) );
     }
     else
     {
@@ -103,7 +104,7 @@ namespace libply
         std::string keyword = "comment" + std::to_string( idx );
         if ( metadata.find( keyword ) ==  metadata.end() )
         {
-          metadata.emplace( keyword, std::string( textio::SubString( next, line.end() ) ) );
+          metadata.emplace( keyword, MDAL::trim( std::string( textio::SubString( next, line.end() ) ) ) );
           break;
         }
         idx++;
@@ -161,14 +162,17 @@ namespace libply
     if ( line == "format ascii 1.0" )
     {
       m_format = File::Format::ASCII;
+      metadata.emplace( "format", "ascii 1.0" );
     }
     else if ( line == "format binary_little_endian 1.0" )
     {
       m_format = File::Format::BINARY_LITTLE_ENDIAN;
+      metadata.emplace( "format", "binary_little_endian 1.0" );
     }
     else if ( line == "format binary_big_endian 1.0" )
     {
       m_format = File::Format::BINARY_BIG_ENDIAN;
+      metadata.emplace( "format", "binary_big_endian 1.0" );
     }
     else
     {
@@ -283,7 +287,7 @@ namespace libply
     {
       if ( t_idx == m_tokens.size() ||  e_idx == elementBuffer.size() )
       {
-        MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Incomplete Element" );
+        MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Invalid number of values" );
         return;
       }
       if ( !p.isList )
@@ -302,7 +306,7 @@ namespace libply
         {
           if ( t_idx == m_tokens.size() )
           {
-            MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Incomplete Element" );
+            MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Invalid number of values" );
             return;
           }
           p.conversionFunction( m_tokens[t_idx], lp->value( i ) );
@@ -324,7 +328,11 @@ namespace libply
     {
       if ( !p.isList )
       {
-        if ( e_idx == elementBuffer.size() ) return; //TODO throw an error
+        if ( e_idx == elementBuffer.size() )
+        {
+          MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Invalid number of values" );
+          return;
+        }
         const auto size = TYPE_SIZE_MAP.at( p.type );
         fs.read( buffer, size );
         p.castFunction( buffer, elementBuffer[e_idx] );
@@ -332,7 +340,11 @@ namespace libply
       }
       else
       {
-        if ( e_idx == elementBuffer.size() ) return; //TODO throw an error
+        if ( e_idx == elementBuffer.size() )
+        {
+          MDAL_SetStatus( MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Invalid number of values" );
+          return;
+        }
         const auto lengthType = p.listLengthType;
         const auto lengthTypeSize = TYPE_SIZE_MAP.at( lengthType );
         fs.read( buffer, lengthTypeSize );
@@ -496,10 +508,6 @@ namespace libply
           file << convert( lp->value( i ), ss ).str() << " ";
         }
         e_idx++;
-        for ( size_t i = 0; i < buffer.size(); ++i )
-        {
-
-        }
       }
     }
     file << '\n';
@@ -510,27 +518,34 @@ namespace libply
     const unsigned int MAX_PROPERTY_SIZE = 8;
     char write_buffer[MAX_PROPERTY_SIZE];
 
-    if ( elementDefinition.properties.front().isList )
+    const std::vector<PropertyDefinition> properties = elementDefinition.properties;
+    size_t e_idx = 0;
+    for ( PropertyDefinition p : properties )
     {
-      unsigned char list_size = static_cast<unsigned char>( buffer.size() );
-      file.write( reinterpret_cast<char *>( &list_size ), sizeof( list_size ) );
-
-      auto &cast = elementDefinition.properties.front().writeCastFunction;
-      for ( size_t i = 0; i < buffer.size(); ++i )
+      auto &cast = properties.at( e_idx ).writeCastFunction;
+      if ( !p.isList )
       {
         size_t write_size;
-        cast( buffer[i], write_buffer, write_size );
+        cast( buffer[e_idx], write_buffer, write_size );
         file.write( reinterpret_cast<char *>( write_buffer ), write_size );
+        e_idx++;
       }
-    }
-    else
-    {
-      for ( size_t i = 0; i < buffer.size(); ++i )
+      else
       {
-        auto &cast = elementDefinition.properties.at( i ).writeCastFunction;
-        size_t write_size;
-        cast( buffer[i], write_buffer, write_size );
-        file.write( reinterpret_cast<char *>( write_buffer ), write_size );
+        ListProperty *lp = dynamic_cast<ListProperty *>( &buffer[e_idx] );
+
+        unsigned char list_size = static_cast<unsigned char>( lp->size() );
+        file.write( reinterpret_cast<char *>( &list_size ), sizeof( list_size ) );
+
+        for ( size_t i = 0; i < lp->size(); i++ )
+        {
+          size_t write_size;
+          cast( lp->value( i ), write_buffer, write_size );
+          file.write( reinterpret_cast<char *>( write_buffer ), write_size );
+          std::cout << std::to_string( write_size ) << std::endl;
+          std::cout << std::string( reinterpret_cast<char *>( write_buffer ) ) << std::endl;
+        }
+        e_idx++;
       }
     }
   }
@@ -552,7 +567,7 @@ namespace libply
   {
     const size_t size = elementDefinition.size;
     ElementBuffer buffer( elementDefinition );
-    //buffer.reset( elementDefinition.properties.size() );
+
     for ( size_t i = 0; i < size; ++i )
     {
       writeProperties( file, buffer, i, elementDefinition, format, callback );
@@ -593,6 +608,15 @@ namespace libply
 
     file << "ply" << std::endl;
     file << "format " << formatString( m_format ) << " 1.0" << std::endl;
+    for ( const auto &n : metadata )
+    {
+      file << "comment ";
+      if ( n.first.find( "comment" ) == std::string::npos )
+      {
+        file << n.first << " : ";
+      }
+      file << n.second << std::endl;
+    }
     for ( const auto &def : m_definitions )
     {
       writeElementDefinition( file, def );

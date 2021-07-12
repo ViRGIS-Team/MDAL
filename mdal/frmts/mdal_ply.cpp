@@ -16,6 +16,7 @@
 #include <limits>
 #include <algorithm>
 #include <string.h>
+#include <unordered_map>
 
 #include "mdal_ply.hpp"
 #include "mdal.h"
@@ -263,6 +264,10 @@ std::unique_ptr<MDAL::Mesh> MDAL::DriverPly::load( const std::string &meshFile, 
   {
     mesh->setSourceCrs( metadata.at( "crs" ) );
   }
+  for ( const auto &n : metadata )
+  {
+    mesh->setMetadata( n.first, n.second );
+  }
 
 
   // Add Bed Elevation
@@ -394,15 +399,38 @@ void MDAL::DriverPly::save( const std::string &uri, MDAL::Mesh *mesh )
     }
   }
 
+  // parse the MDAL metadata
+  libply::Metadata md;
+  for ( std::pair< std::string, std::string > item : mesh->metadata )
+  {
+    md.emplace( item );
+  }
 
-  libply::FileOut file( uri, libply::File::Format::ASCII );
+  libply::File::Format format = libply::File::Format::ASCII;
+  if ( md.find( "format" ) != md.end() )
+  {
+    std::string value = md.at( "format" );
+    if ( value.find( "binary_little" ) != std::string::npos )
+    {
+      format = libply::File::Format::BINARY_LITTLE_ENDIAN;
+    }
+    else if ( value.find( "binary_big" ) != std::string::npos )
+    {
+      format = libply::File::Format::BINARY_BIG_ENDIAN;
+    }
+    md.erase( "format" );
+  }
+
+  md.emplace( "crs", mesh->crs() );
+
+  libply::FileOut file( uri, format );
   if ( MDAL::Log::getLastStatus() != MDAL_Status::None ) return;
 
   libply::ElementsDefinition definitions;
   std::vector<libply::Property> vproperties;
-  vproperties.emplace_back( "X", libply::Type::FLOAT64, false );
-  vproperties.emplace_back( "Y", libply::Type::FLOAT64, false );
-  vproperties.emplace_back( "Z", libply::Type::FLOAT64, false );
+  vproperties.emplace_back( "x", libply::Type::FLOAT64, false );
+  vproperties.emplace_back( "y", libply::Type::FLOAT64, false );
+  vproperties.emplace_back( "z", libply::Type::FLOAT64, false );
   for ( std::shared_ptr<DatasetGroup> group : vgroups )
   {
     vproperties.emplace_back( group->name(), libply::Type::FLOAT64, false );
@@ -432,6 +460,9 @@ void MDAL::DriverPly::save( const std::string &uri, MDAL::Mesh *mesh )
 
   file.setElementsDefinition( definitions );
 
+  // write metadata
+  file.metadata = std::move( md );
+
   // write vertices
   std::unique_ptr<MDAL::MeshVertexIterator> vertices = mesh->readVertices();
 
@@ -443,11 +474,11 @@ void MDAL::DriverPly::save( const std::string &uri, MDAL::Mesh *mesh )
     e[0] = vertex[0];
     e[1] = vertex[1];
     e[2] = vertex[2];
-    for (size_t i = 0; i < vgroups.size(); i++)
+    for ( size_t i = 0; i < vgroups.size(); i++ )
     {
-        double val[1];
-        vgroups[i]->datasets[0]->scalarData( index, 1, &val[0] );
-        e[i+3] = val[0];
+      double val[1];
+      vgroups[i]->datasets[0]->scalarData( index, 1, &val[0] );
+      e[i + 3] = val[0];
     }
   };
 
@@ -465,11 +496,11 @@ void MDAL::DriverPly::save( const std::string &uri, MDAL::Mesh *mesh )
     {
       lp->value( j ) = vertexIndices[j];
     };
-    for (size_t i = 0; i < fgroups.size(); i++)
+    for ( size_t i = 0; i < fgroups.size(); i++ )
     {
-        double val[1];
-        fgroups[i]->datasets[0]->scalarData( index, 1, &val[0] );
-        e[i+1] = val[0];
+      double val[1];
+      fgroups[i]->datasets[0]->scalarData( index, 1, &val[0] );
+      e[i + 1] = val[0];
     }
   };
 
@@ -485,11 +516,11 @@ void MDAL::DriverPly::save( const std::string &uri, MDAL::Mesh *mesh )
     edges->next( 1, &startIndex, &endIndex );
     e[0] = startIndex;
     e[1] = endIndex;
-    for (size_t i = 0; i < egroups.size(); i++)
+    for ( size_t i = 0; i < egroups.size(); i++ )
     {
-        double val[1];
-        egroups[i]->datasets[0]->scalarData( index, 1, &val[0] );
-        e[i+2] = val[0];
+      double val[1];
+      egroups[i]->datasets[0]->scalarData( index, 1, &val[0] );
+      e[i + 2] = val[0];
     }
   };
 

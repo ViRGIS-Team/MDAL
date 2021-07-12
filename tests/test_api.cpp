@@ -510,6 +510,10 @@ TEST( ApiTest, MeshCreationApi )
   driver = MDAL_driverFromName( "SELAFIN" );
   EXPECT_TRUE( MDAL_DR_saveMeshCapability( driver ) );
   EXPECT_EQ( std::strcmp( MDAL_DR_saveMeshSuffix( driver ), "slf" ), 0 );
+
+  driver = MDAL_driverFromName( "PLY" );
+  EXPECT_TRUE( MDAL_DR_saveMeshCapability( driver ) );
+  EXPECT_EQ( std::strcmp( MDAL_DR_saveMeshSuffix( driver ), "ply" ), 0 );
 }
 
 int main( int argc, char **argv )
